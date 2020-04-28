@@ -1,0 +1,24 @@
+# permissions for end users to edit certinfoes.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: certinfo-editor-role
+rules:
+- apiGroups:
+  - cert.vault.com
+  resources:
+  - certinfoes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cert.vault.com
+  resources:
+  - certinfoes/status
+  verbs:
+  - get

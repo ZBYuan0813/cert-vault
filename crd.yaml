@@ -1,0 +1,75 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
+  name: certinfoes.cert.vault.com
+spec:
+  group: cert.vault.com
+  names:
+    kind: CertInfo
+    listKind: CertInfoList
+    plural: certinfoes
+    singular: certinfo
+  scope: Namespaced
+  validation:
+    openAPIV3Schema:
+      description: CertInfo is the Schema for the certinfoes API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: CertInfoSpec defines the desired state of CertInfo
+          properties:
+            allow_any_name:
+              type: boolean
+            allow_subdomains:
+              type: boolean
+            allowed_domain:
+              items:
+                type: string
+              type: array
+            common_name:
+              type: string
+            max_ttl:
+              type: string
+            organization:
+              type: string
+            ou:
+              type: string
+            role:
+              description: Foo is an example field of CertInfo. Edit CertInfo_types.go
+                to remove/update
+              type: string
+          required:
+          - common_name
+          - max_ttl
+          - ou
+          - role
+          type: object
+        status:
+          description: CertInfoStatus defines the observed state of CertInfo
+          type: object
+      type: object
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

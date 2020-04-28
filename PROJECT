@@ -1,0 +1,7 @@
+domain: vault.com
+repo: cert-vault
+resources:
+- group: cert
+  kind: CertInfo
+  version: v1
+version: "2"

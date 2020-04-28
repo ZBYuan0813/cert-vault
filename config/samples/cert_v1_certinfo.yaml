@@ -1,0 +1,7 @@
+apiVersion: cert.vault.com/v1
+kind: CertInfo
+metadata:
+  name: certinfo-sample
+spec:
+  # Add fields here
+  foo: bar
