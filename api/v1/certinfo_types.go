@@ -37,6 +37,7 @@ type CertInfoSpec struct {
 	Ou               string   `json:"ou"`
 	Max_TTL          string   `json:"max_ttl"`
 	CommonName       string   `json:"common_name"`
+        Path             string   `json:"path"`
 }
 
 // CertInfoStatus defines the observed state of CertInfo

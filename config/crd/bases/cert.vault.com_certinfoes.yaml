@@ -50,6 +50,8 @@ spec:
               type: string
             ou:
               type: string
+            path:
+              type: string
             role:
               description: Foo is an example field of CertInfo. Edit CertInfo_types.go
                 to remove/update
@@ -58,6 +60,7 @@ spec:
           - common_name
           - max_ttl
           - ou
+          - path
           - role
           type: object
         status:
