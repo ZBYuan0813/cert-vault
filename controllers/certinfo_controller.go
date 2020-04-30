@@ -63,10 +63,14 @@ func (r *CertInfoReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			if err := r.Update(context.Background(),cert); err != nil{
 				return ctrl.Result{}, nil
 			}
-		}
-		if err := r.getSecret(ctx,secret,cert); err != nil {
-			log.Info("Create secret field","Error info",err)
-			return ctrl.Result{},nil
+			if err := r.getSecret(ctx,secret,cert); err != nil {
+				log.Info("Create secret field","Error info",err)
+				return ctrl.Result{},nil
+			}
+		}else{
+			if err := r.updateSecret(ctx,secret,cert); err != nil{
+				return ctrl.Result{},nil
+			}
 		}
 	} else {
 			if containsString(cert.ObjectMeta.Finalizers,myFinalizerName){
@@ -123,6 +127,25 @@ func (r *CertInfoReconciler) reconcileDelete(ctx context.Context,cert *certv1.Ce
 	return nil
 }
 
+
+// find secret whether exits
+func (r *CertInfoReconciler) getSecret(ctx context.Context,secret *corev1.Secret,cert *certv1.CertInfo) error {
+	log := r.Log.WithValues("Secret namespace",cert.Namespace)
+	var req ctrl.Request
+	req.Name = cert.Name
+	req.Namespace = cert.Namespace
+	if err := r.Client.Get(ctx,req.NamespacedName,secret); err != nil{
+		log.Info("secret create secret","secret",req.NamespacedName)
+		// 创建secret
+		m := r.generateCert(cert)
+		return r.createSecret(ctx,m,cert)
+		}else {
+
+			log.Info("Secret exits")
+		}
+	return nil
+}
+
 // create role and cert from root ca use root token
 func (r *CertInfoReconciler) generateCert(certInfo *certv1.CertInfo) (ca map[string][]byte){
 	logger := r.Log.WithValues("cluster", certInfo.Name, "namespace", certInfo.Namespace)
@@ -151,31 +174,15 @@ func (r *CertInfoReconciler) generateCert(certInfo *certv1.CertInfo) (ca map[str
 
 	client := pkg.CreateVaultConfig()
 	res := pkg.CreateRole("/v1/"+certInfo.Spec.Path+"/roles/",role.RoleName,rolebody,client)
-	logger.Info("Create role response","response",string(res))
+	if res > 400{
+		logger.Info("Create Ca failed")
+		return
+	}
+	logger.Info("Create role response","response status",res)
 	m := pkg.CreateCert("/v1/"+certInfo.Spec.Path+"/issue/",cert.RoleName,certbody,client)
+	logger.Info("Path of cert","path",certInfo.Spec.Path)
+	m["path"]=[]byte(certInfo.Spec.Path)
 	return m
-}
-
-// find secret whether exits
-func (r *CertInfoReconciler) getSecret(ctx context.Context,secret *corev1.Secret,cert *certv1.CertInfo) error {
-	log := r.Log.WithValues("Secret namespace",cert.Namespace)
-	var req ctrl.Request
-	req.Name = cert.Name
-	req.Namespace = cert.Namespace
-	if err := r.Client.Get(ctx,req.NamespacedName,secret); err != nil{
-		log.Info("secret create secret","secret",req.NamespacedName)
-		// 创建secret
-		m := r.generateCert(cert)
-		return r.createSecret(ctx,m,cert)
-		}else {
-			log.Info("Secret exits")
-			//m := r.generateCert(cert)
-			//secret.Data = m
-			//log.Info("Update secret")
-			//return r.updateSecret(ctx,secret)
-		}
-	log.Info("End secret")
-	return nil
 }
 
 // set secret and add cert info to secret data
@@ -200,9 +207,43 @@ func (r *CertInfoReconciler)createSecret(ctx context.Context,m map[string][]byte
 }
 
 
-func (r *CertInfoReconciler)updateSecret(ctx context.Context,sc *corev1.Secret) error{
-	if err := r.Client.Update(ctx, sc); err != nil {
+// update secret
+func (r *CertInfoReconciler)updateSecret(ctx context.Context,sc *corev1.Secret,cert * certv1.CertInfo) error{
+	log := r.Log.WithValues("Update secret with namespace",cert.Namespace)
+	var req ctrl.Request
+	req.Name = cert.Name
+	req.Namespace = cert.Namespace
+	if err := r.Client.Get(ctx,req.NamespacedName,sc); err != nil{
 		return err
 	}
+	if err := r.Client.Get(ctx,req.NamespacedName,cert); err != nil{
+		return err
+	}
+	path := string(sc.Data["path"])
+	log.Info("Generate cert path","Path",path)
+	if path == cert.Spec.Path {
+		return nil
+	}else {
+		log.Info("Update cert information")
+		r.deleteCert(ctx,sc,path)
+		m := r.generateCert(cert)
+		sc.Data = m
+		return r.Client.Update(ctx,sc)
+	}
 	return nil
+}
+
+
+// delete cert and update cert when update certinfo crd
+func (r *CertInfoReconciler) deleteCert(ctx context.Context,secret *corev1.Secret,path string) {
+	log := r.Log.WithValues("Update secret with namespace",secret.Namespace)
+	client := pkg.CreateVaultConfig()
+	serialNum := string(secret.Data["serial_number"])
+	revoke := pkg.RevokeData{
+		SerialNumber: serialNum,
+	}
+	revokeData,_ := json.Marshal(revoke)
+	revokePath := "/v1/"+path+"/revoke"
+	statusCode := pkg.RevokeCert(revokePath,revokeData,client)
+	log.Info("Update cert and delete old cert","response status",statusCode)
 }
