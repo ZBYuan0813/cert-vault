@@ -58,15 +58,15 @@ func (r *CertInfoReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	if cert.ObjectMeta.DeletionTimestamp.IsZero(){
 		log.Info("IsZero","IsZero",cert.ObjectMeta.DeletionTimestamp.IsZero())
 		if !containsString(cert.ObjectMeta.Finalizers, myFinalizerName){
-			cert.ObjectMeta.Finalizers = append(cert.ObjectMeta.Finalizers,myFinalizerName)
+			//cert.ObjectMeta.Finalizers = append(cert.ObjectMeta.Finalizers,myFinalizerName)
+			controllerutil.AddFinalizer(cert,myFinalizerName)
 			if err := r.Update(context.Background(),cert); err != nil{
-				return ctrl.Result{}, err
+				return ctrl.Result{}, nil
 			}
 		}
-		m := r.generateCert(cert)
-		if err := r.getSecret(ctx,secret,m,cert); err != nil {
-			log.Error(err,"Create secret field")
-			return ctrl.Result{},err
+		if err := r.getSecret(ctx,secret,cert); err != nil {
+			log.Info("Create secret field","Error info",err)
+			return ctrl.Result{},nil
 		}
 	} else {
 			if containsString(cert.ObjectMeta.Finalizers,myFinalizerName){
@@ -102,8 +102,24 @@ func containsString(slice []string, s string) bool {
 // the func for delete ca from vault and crd
 func (r *CertInfoReconciler) reconcileDelete(ctx context.Context,cert *certv1.CertInfo) error{
 	logger := r.Log.WithValues("cluster", cert.Name, "namespace", cert.Namespace)
-	logger.Info("Delete cert crd")
-
+	logger.Info("Delete cert crd and Revoke Cert")
+	secret := &corev1.Secret{}
+	var req ctrl.Request
+	req.Name = cert.Name
+	req.Namespace = cert.Namespace
+	if err := r.Client.Get(ctx,req.NamespacedName,secret); err !=nil{
+		return err
+	}
+	client := pkg.CreateVaultConfig()
+	serialNum := string(secret.Data["serial_number"])
+	revoke := pkg.RevokeData{
+		SerialNumber: serialNum,
+	}
+	logger.Info("Revoke Cert","serial_number",serialNum)
+	revokeData,_ := json.Marshal(revoke)
+	revokePath := "/v1/"+cert.Spec.Path+"/revoke"
+	statusCode := pkg.RevokeCert(revokePath,revokeData,client)
+	logger.Info("Revoke Cert response","StatusCode:",statusCode)
 	return nil
 }
 
@@ -131,8 +147,6 @@ func (r *CertInfoReconciler) generateCert(certInfo *certv1.CertInfo) (ca map[str
 
 	rolebody,_ := json.Marshal(role.RoleData)
 
-
-
 	certbody, _ := json.Marshal(cert.CertData)
 
 	client := pkg.CreateVaultConfig()
@@ -143,7 +157,7 @@ func (r *CertInfoReconciler) generateCert(certInfo *certv1.CertInfo) (ca map[str
 }
 
 // find secret whether exits
-func (r *CertInfoReconciler) getSecret(ctx context.Context,secret *corev1.Secret,m map[string][]byte,cert *certv1.CertInfo) error {
+func (r *CertInfoReconciler) getSecret(ctx context.Context,secret *corev1.Secret,cert *certv1.CertInfo) error {
 	log := r.Log.WithValues("Secret namespace",cert.Namespace)
 	var req ctrl.Request
 	req.Name = cert.Name
@@ -151,10 +165,16 @@ func (r *CertInfoReconciler) getSecret(ctx context.Context,secret *corev1.Secret
 	if err := r.Client.Get(ctx,req.NamespacedName,secret); err != nil{
 		log.Info("secret create secret","secret",req.NamespacedName)
 		// 创建secret
+		m := r.generateCert(cert)
 		return r.createSecret(ctx,m,cert)
-	}else{
-		log.Info("Secret exits")
-	}
+		}else {
+			log.Info("Secret exits")
+			//m := r.generateCert(cert)
+			//secret.Data = m
+			//log.Info("Update secret")
+			//return r.updateSecret(ctx,secret)
+		}
+	log.Info("End secret")
 	return nil
 }
 
@@ -173,8 +193,15 @@ func (r *CertInfoReconciler)createSecret(ctx context.Context,m map[string][]byte
 		},
 		Data: m,
 	}
-	err := r.Client.Create(ctx,sc)
-	if err != nil{
+	if err := r.Client.Create(ctx, sc); err != nil {
+			return err
+	}
+	return nil
+}
+
+
+func (r *CertInfoReconciler)updateSecret(ctx context.Context,sc *corev1.Secret) error{
+	if err := r.Client.Update(ctx, sc); err != nil {
 		return err
 	}
 	return nil

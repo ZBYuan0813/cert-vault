@@ -35,6 +35,10 @@ type CertData struct {
 	CommonName       string `json:"common_name"`
 }
 
+type RevokeData struct{
+	SerialNumber  string `json:"serial_number"`
+}
+
 func CreateVaultConfig() *vault.Client{
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -89,15 +93,27 @@ func CreateCert(path string,role string ,body []byte,client *vault.Client) (ca m
 	log.Println(res.StatusCode)
 	var out = make(map[string][]byte)
 	tmp := v["data"].(map[string]interface{})
+	//fmt.Println(tmp)
 	for k,val := range tmp{
-		if k == "private_key" || k == "certificate" || k == "issuing_ca"{
+		if k == "private_key" || k == "certificate" || k == "issuing_ca" || k=="serial_number"{
 			out[k] = []byte(val.(string))
 		}
 	}
 	return out
 }
 
-
+func RevokeCert(path string, body []byte,client * vault.Client) int{
+	// path: v1/pki/revoke
+	requestPath := path
+	req := client.NewRequest("POST",requestPath)
+	req.BodyBytes = body
+	res, err := client.RawRequest(req)
+	if err != nil{
+		log.Println(err)
+	}
+	defer res.Body.Close()
+	return res.StatusCode
+}
 
 
 
