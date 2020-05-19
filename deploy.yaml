@@ -259,6 +259,11 @@ spec:
         - /manager
         image: controller:latest
         name: manager
+        env:
+        - name: VAULT_ADDR
+          value: "https://vault.test.com.cn"
+        - name: VAULT_TOKEN
+          value: "s.ewefsfsIfasfwePdsfsa"
         resources:
           limits:
             cpu: 100m

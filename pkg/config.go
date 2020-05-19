@@ -41,7 +41,7 @@ type RevokeData struct{
 
 func init(){
 	if os.Getenv("VAULT_ADDR") == "" {
-		os.Setenv("VAULT_ADDR", "http://vault-ver.mstech.com.cn")
+		os.Setenv("VAULT_ADDR", "http://vault.company.com.cn")
 	}
 	if os.Getenv("VAULT_TOKEN") == "" {
 		os.Setenv("VAULT_TOKEN", "s.rPB1z1oTI5y4Ax2xcAhnFbFQ")

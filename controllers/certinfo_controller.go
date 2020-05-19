@@ -152,7 +152,7 @@ func (r *CertInfoReconciler) generateCert(certInfo *certv1.CertInfo) (ca map[str
 	role := pkg.Role{
 		RoleName:  certInfo.Spec.RoleName,
 		RoleData: pkg.RoleData{
-			Allowed_Domains: []string{"mskj.com"},
+			Allowed_Domains: []string{"cloud.com"},
 			Allow_subdomains: true,
 			Allow_Any_Name: true,
 			Organization: certInfo.Spec.Organization,
