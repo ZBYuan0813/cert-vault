@@ -84,6 +84,8 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+
+	setupLog.Info("vault address: ","address",os.Getenv("VAULT_ADDR"))
 }
 // health check
 func setupChecks(mgr ctrl.Manager) {

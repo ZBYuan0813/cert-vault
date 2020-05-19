@@ -39,11 +39,21 @@ type RevokeData struct{
 	SerialNumber  string `json:"serial_number"`
 }
 
+func init(){
+	if os.Getenv("VAULT_ADDR") == "" {
+		os.Setenv("VAULT_ADDR", "http://vault-ver.mstech.com.cn")
+	}
+	if os.Getenv("VAULT_TOKEN") == "" {
+		os.Setenv("VAULT_TOKEN", "s.rPB1z1oTI5y4Ax2xcAhnFbFQ")
+	}
+
+}
+
+
 func CreateVaultConfig() *vault.Client{
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
-	os.Setenv("VAULT_ADDR", "http://vault-ver.mstech.com.cn")
 	config := vault.Config{
 		Address:   os.Getenv("VAULT_ADDR"),
 		HttpClient: &http.Client{Transport: tr},
@@ -55,7 +65,6 @@ func CreateVaultConfig() *vault.Client{
 		log.Println("NewClient err")
 		return nil
 	}
-	os.Setenv("VAULT_TOKEN", "s.rPB1z1oTI5y4Ax2xcAhnFbFQ")
 	cv.SetToken(os.Getenv("VAULT_TOKEN"))
 	return cv
 }
